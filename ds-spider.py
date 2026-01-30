@@ -1,40 +1,48 @@
 import os
-import queue
 import requests
 import sys
-import threading
-from io       import BytesIO
-from ds_store import DSStore
-
-try: 
-    from urllib.parse import urlparse
-except Exception:
-    from urlparse import urlparse
+from threading    import Lock
+from queue        import Queue, Empty
+from io           import BytesIO
+from ds_store     import DSStore
+from urllib.parse import urlparse
 
 
 
-class DSSpider(object):
 
-    DIRECTORY = os.path.abspath('.')
+def main() -> None:    
+    if len(sys.argv) <= 1:
+        print('[ ERROR ] Missing argument/URL')
+        sys.exit(1)
 
+    sys.argv[1]        
+    for _ in range(10):
+        s = DSSpider()
+        s.scan()
+
+
+
+class DSSpider:
+
+    DIRECTORY: str  = os.path.abspath('.')
 
 
     def __init__(self):
-        url = self._get_args()
+        url = self._get_url()
 
-        self._queue = queue.Queue()
+        self._queue: Queue = Queue()
         self._queue.put(url)
         
-        self._processed_url   = set()
-        self._lock            = threading.Lock()
-        self._working_threads = 0
+        self._processed_urls:  set  = set()
+        self._lock:            Lock = Lock()
+        self._working_threads: int  = 0
 
-        self._running = True
+        self._running: bool = True
 
 
     
     @staticmethod
-    def _get_args():
+    def _get_url() -> str:
         if len(sys.argv) <= 1:
             sys.exit(1)
 
@@ -43,33 +51,23 @@ class DSSpider(object):
 
     
     def _display(self, msg):
-        self._lock.acquire()
-        print(msg)
-        self._lock.release()
-
-    
-
-    def scan(self):
-        all_threads = []
-        for _ in range(10):
-            t = threading.Thread(target=self._process)
-            all_threads.append(t)
-            t.start()
+        with self._lock:
+            print(msg)
 
 
 
-    def _process(self):
+    def _process(self) -> None:
         while self._running:
             try:
                 url = self._get_url()
-            except queue.Empty:
+            except Empty:
                 self._check_threads()
                 continue
             except Exception:
                 self._display(f'[ERROR] _get_url: {e}')
                 continue                
 
-            if url in self._processed_url:
+            if url in self._processed_urls:
                 continue
             
             url, base_url            = self._parse_url(url)
@@ -96,14 +94,14 @@ class DSSpider(object):
 
     
 
-    def _get_url(self):
+    def _get_url(self) -> str:
         try:
             url = self._queue.get(timeout=2.0)
             self._lock.acquire()
             self._working_threads += 1
             self._lock.release()
             return url
-        except queue.Empty:
+        except Empty:
             raise
         except Exception as e:
             self._display(f'[ERROR] queue.get: {e}')
@@ -111,18 +109,17 @@ class DSSpider(object):
     
 
 
-    def _check_threads(self):
-        self._lock.acquire()
+    def _check_threads(self) -> None:
+        if self._working_threads != 0:
+            return
         
-        if self._working_threads == 0:
+        with self._lock:
             self._running = False
-        
-        self._lock.release()
-    
+            
 
 
     def _parse_url(self, url):
-        self._processed_url.add(url)
+        self._processed_urls.add(url)
         base_url = url.rstrip('.DS_Store')
                 
         if not url.lower().startswith('http'):
@@ -202,5 +199,4 @@ class DSSpider(object):
 
 
 if __name__ == '__main__':
-    s = DSSpider()
-    s.scan()
+    main()
