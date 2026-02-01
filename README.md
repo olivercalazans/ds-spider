@@ -6,7 +6,7 @@ This project is a simple script for .DS_Store spidering. It downloads and parse 
 <br>
 
 ### Dependencies
-This project can used with Python 2 and 3. Some external libs are requered.
+This project can used with Python 3. Some external libs are requered.
 ```bash
 pip install ds-store requests
 ```
