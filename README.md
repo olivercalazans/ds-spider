@@ -15,7 +15,7 @@ pip install ds-store requests
 
 ### How to use
 ```bash
-python ds-spider.py <url>
+python3 ds-spider.py <url>
 ```
 
 <br>
