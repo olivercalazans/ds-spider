@@ -29,6 +29,7 @@ class DSSpider:
         self._threads:        int = 0
         self._DIR:            str = os.path.abspath('.')
         self._processed_urls: set = set()
+        self._running:       bool = True
 
 
     
@@ -36,7 +37,7 @@ class DSSpider:
         print('[+] Crawler started\n')
         self._get_args()
         
-        while self._threads > 0:
+        while self._running:
             time.sleep(0.5)
         
         print('\n[-] Crawler finished')
@@ -46,16 +47,18 @@ class DSSpider:
     def _get_args(self) -> str:
         if len(sys.argv) <= 1:
             print('[ ERROR ] Missing argument/URL')
-            print('[ USAGE ] python ds-spider.py http://example.com/.DS_Store')
-            sys.exit(1)
+            print('[ USAGE ] python3 ds-spider.py http://example.com/.DS_Store')
+            self._running = False
+            return
 
         self._enqueue_url(sys.argv[1])
 
     
 
     def _enqueue_url(self, url: str):
-        if url in self._processed_urls:
-            return
+        with self._lock:
+            if url in self._processed_urls:
+                return
         
         self._queue.put(url)
         self._add_thread()
@@ -63,10 +66,10 @@ class DSSpider:
 
     
     def _add_thread(self):
-        if self._threads >= 10:
-            return
-
         with self._lock:
+            if self._threads >= 10:
+                return
+
             self._threads += 1
             t = Thread(target=self._scan)
             t.daemon = False
@@ -119,6 +122,8 @@ class DSSpider:
     def _remove_thread(self):
         with self._lock: 
             self._threads -= 1
+            if self._threads <= 0:
+                self._running = False
 
     
 
